@@ -64,23 +64,25 @@ class Cart:
         return round(sum(li.subtotal for li in self._items.values()), 2)
 
     def total(self) -> dict:
-        """Return a breakdown dict: subtotal, discount, tax, total."""
-        subtotal = self.raw_subtotal()
+        """Return a breakdown dict: original_subtotal, subtotal, discount, tax, total.
+
+        ``subtotal`` is the post-discount pre-tax amount (the tax base), so that
+        ``subtotal + tax == total`` always holds.
+        ``original_subtotal`` is the raw pre-discount amount kept for display.
+        """
+        original_subtotal = self.raw_subtotal()
+        subtotal = original_subtotal
         discount = 0.0
 
         if self._coupon is not None:
-            # BUG-1 trigger: empty string crashes here with KeyError
-            discounted, discount = apply_coupon(subtotal, self._coupon)
-            subtotal = discounted
+            subtotal, discount = apply_coupon(subtotal, self._coupon)
 
         tax = round(subtotal * TAX_RATE, 2)
-        # BUG-2: if price_after_discount_and_tax() was also called externally
-        # (e.g. from a preview endpoint), tax gets applied a second time on
-        # receipt generation because apply_tax() is called again below.
         total = round(subtotal + tax, 2)
 
         return {
-            "subtotal": self.raw_subtotal(),
+            "original_subtotal": original_subtotal,
+            "subtotal": round(subtotal, 2),
             "discount": round(discount, 2),
             "tax": tax,
             "total": total,
