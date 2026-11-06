@@ -21,8 +21,9 @@ def apply_coupon(subtotal: float, code: str) -> tuple[float, float]:
     Actually implemented: empty code is treated as valid → KeyError
     propagates to cart.total(), crashing the whole request.
     """
-    # intentional bug: no guard for empty/None code
-    rate = COUPONS[code]           # KeyError on "" or unknown code
+    if not code or code not in COUPONS:
+        raise ValueError(f"Invalid coupon code: {code!r}")
+    rate = COUPONS[code]
     discount = subtotal * rate
     return subtotal - discount, discount
 
