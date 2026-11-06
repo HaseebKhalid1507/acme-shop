@@ -29,9 +29,15 @@ def apply_tax(amount: float) -> float:
     return round(amount * (1 + TAX_RATE), 2)
 
 
-# BUG-2 (sev2): tax is applied to the already-discounted subtotal here
-# AND again inside cart.total() when build_receipt() is called — double tax.
+# BUG-2 fix: removed apply_tax() from this helper so it returns only the
+# post-discount subtotal. Tax is applied exactly once by the caller (cart.total()).
 def price_after_discount_and_tax(subtotal: float, code: str | None) -> float:
+    """Return the post-discount subtotal (tax NOT included).
+
+    Tax is applied exactly once by cart.total() / the caller.  This function
+    must NOT call apply_tax() so that callers that subsequently compute
+    ``subtotal * TAX_RATE`` do not double-charge the customer.
+    """
     if code:
         subtotal, _ = apply_coupon(subtotal, code)
-    return apply_tax(subtotal)
+    return subtotal
