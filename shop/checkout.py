@@ -55,12 +55,7 @@ class Checkout:
             self._reserved[li.product.id] = li.qty
 
     def _release(self) -> None:
-        """Return reserved stock on payment failure.
-
-        BUG-3 (sev2): this method is never called on PaymentError — stock
-        stays decremented even when payment fails, leaking inventory.
-        """
-        # the loop is correct but _release() is not called in place_order()
+        """Return reserved stock on payment failure."""
         for pid, qty in self._reserved.items():
             self._catalog.adjust_stock(pid, qty)
         self._reserved.clear()
@@ -79,7 +74,7 @@ class Checkout:
         try:
             _stub_payment(payment_method, breakdown["total"], card_token)
         except PaymentError:
-            # BUG-3: should call self._release() here — intentionally omitted
+            self._release()
             raise
 
         order = Order(
