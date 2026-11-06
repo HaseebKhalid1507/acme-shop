@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 from shop.catalog import Catalog, Product
-from shop.pricing import COUPONS, apply_coupon, apply_tax, TAX_RATE
+from shop.pricing import COUPONS, apply_coupon, apply_tax, TAX_RATE, price_after_discount_and_tax
 
 
 @dataclass
@@ -64,25 +64,27 @@ class Cart:
         return round(sum(li.subtotal for li in self._items.values()), 2)
 
     def total(self) -> dict:
-        """Return a breakdown dict: subtotal, discount, tax, total."""
-        subtotal = self.raw_subtotal()
+        """Return a breakdown dict: subtotal, discount, tax, total.
+
+        Tax is applied exactly once — on the post-discount subtotal —
+        via price_after_discount_and_tax().  This is the single source of
+        truth for the final price so that the preview price always matches
+        the charge (acme-shop#2).
+        """
+        gross = self.raw_subtotal()
         discount = 0.0
 
         if self._coupon is not None:
-            # BUG-1 trigger: empty string crashes here with KeyError
-            discounted, discount = apply_coupon(subtotal, self._coupon)
-            subtotal = discounted
+            _, discount = apply_coupon(gross, self._coupon)
 
-        tax = round(subtotal * TAX_RATE, 2)
-        # BUG-2: if price_after_discount_and_tax() was also called externally
-        # (e.g. from a preview endpoint), tax gets applied a second time on
-        # receipt generation because apply_tax() is called again below.
-        total = round(subtotal + tax, 2)
+        discounted_subtotal = round(gross - discount, 2)
+        total_with_tax = price_after_discount_and_tax(gross, self._coupon)
+        tax = round(total_with_tax - discounted_subtotal, 2)
 
         return {
-            "subtotal": self.raw_subtotal(),
+            "subtotal": gross,
             "discount": round(discount, 2),
             "tax": tax,
-            "total": total,
+            "total": total_with_tax,
             "coupon": self._coupon,
         }
