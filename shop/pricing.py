@@ -15,14 +15,11 @@ COUPONS: dict[str, float] = {
 def apply_coupon(subtotal: float, code: str) -> tuple[float, float]:
     """Return (discounted_subtotal, discount_amount).
 
-    BUG-1 (sev1): empty string '' is not in COUPONS but the lookup
-    falls through to returning (subtotal - subtotal * None) which raises
-    TypeError — manifests as a crash / NaN in callers that don't guard.
-    Actually implemented: empty code is treated as valid → KeyError
-    propagates to cart.total(), crashing the whole request.
+    Raises ValueError for an empty or unrecognised coupon code.
     """
-    # intentional bug: no guard for empty/None code
-    rate = COUPONS[code]           # KeyError on "" or unknown code
+    if not code or code not in COUPONS:
+        raise ValueError(f"Invalid coupon code: {code!r}")
+    rate = COUPONS[code]
     discount = subtotal * rate
     return subtotal - discount, discount
 
